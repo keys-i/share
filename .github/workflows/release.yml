@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      created: ${{ steps.release.outputs.release_created }}
+      sha: ${{ steps.release.outputs.sha }}
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          target-branch: main
+          config-file: tools/config/release-please-config.json
+          manifest-file: tools/config/release-please-manifest.json
+
+  deploy:
+    needs: release
+    if: >-
+      always() && github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' || needs.release.outputs.created == 'true')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    env:
+      WRANGLER_SEND_METRICS: "false"
+      VITE_GITHUB_APP_SLUG: ${{ vars.APP_SLUG }}
+      VITE_SOURCE_CODE_URL: ${{ github.server_url }}/${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.release.outputs.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: tools/config/.node-version
+          cache: npm
+      - run: npm ci --ignore-scripts --allow-git=none
+      - name: Configure deployment
+        env:
+          DATABASE_ID: ${{ vars.CLOUDFLARE_D1_DATABASE_ID }}
+          APP_CLIENT_ID: ${{ vars.APP_CLIENT_ID }}
+        run: node tools/script/deploy.mts
+      - run: npm run build
+      - run: npm run validate
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist/client
+      - name: Apply database migrations
+        run: npx --no-install wrangler d1 migrations apply shares --config tools/config/wrangler.jsonc --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Deploy API
+        run: npm run deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      - id: pages
+        uses: actions/deploy-pages@v5

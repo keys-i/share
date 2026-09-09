@@ -1,0 +1,4 @@
+paths-ignore:
+  - private-github-link
+  - dist
+  - node_modules
