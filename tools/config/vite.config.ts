@@ -9,6 +9,8 @@ import { localeMetadata, seerPlugin } from "./seer.config.ts";
 export default defineConfig({
   root: fileURLToPath(new URL("../..", import.meta.url)),
   envDir: fileURLToPath(new URL(".", import.meta.url)),
+  // Keep prerender requests on the same loopback address as the preview listener
+  preview: { host: "127.0.0.1" },
   resolve: { alias: { "@": fileURLToPath(new URL("../../src", import.meta.url)) } },
   // Keep the browser support provided by Vite 7
   build: { target: ["chrome107", "edge107", "firefox104", "safari16"] },
