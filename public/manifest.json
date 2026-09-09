@@ -1,0 +1,9 @@
+{
+  "short_name": "share.git",
+  "name": "share.git",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#b6ddff",
+  "background_color": "#f6fbff"
+}
