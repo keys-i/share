@@ -13,8 +13,6 @@ interface RateLimitContextType {
   isLoading: boolean;
 }
 
-const RateLimitContext = React.createContext<RateLimitContextType | null>(null);
-
 const RATE_LIMIT_QUERY_KEY = "rateLimit";
 
 interface RateLimitResponse {
@@ -136,28 +134,4 @@ export function useRateLimit(token?: string): RateLimitContextType {
     state: data || null,
     isLoading,
   };
-}
-
-interface RateLimitProviderProps {
-  children: React.ReactNode;
-}
-
-/**
- * Provider component for rate limit context
- * Note: This is a thin wrapper. The actual token should be passed to useRateLimit hook
- */
-export function RateLimitProvider({ children }: RateLimitProviderProps) {
-  return <RateLimitContext.Provider value={null}>{children}</RateLimitContext.Provider>;
-}
-
-/**
- * Hook to access rate limit context
- * @deprecated Use useRateLimit(token) directly instead
- */
-export function useRateLimitContext(): RateLimitContextType {
-  const context = React.useContext(RateLimitContext);
-  if (!context) {
-    throw new Error("useRateLimitContext must be used within a RateLimitProvider");
-  }
-  return context;
 }

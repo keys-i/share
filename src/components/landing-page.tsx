@@ -1,3 +1,4 @@
+import { SiGithub as Github } from "@icons-pack/react-simple-icons";
 import { ClientOnly, useNavigate } from "@tanstack/react-router";
 import {
   ArrowDown,
@@ -15,10 +16,7 @@ import {
   Server,
   ShieldCheck,
 } from "lucide-react";
-import {
-    SiGithub as Github
-} from "@icons-pack/react-simple-icons";
-import { type FormEvent, useEffect, useId, useRef, useState } from "react";
+import { type SubmitEvent, useEffect, useId, useRef, useState } from "react";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
 import {
@@ -88,7 +86,7 @@ export function LandingPage({
     }
   }, [initialRepository]);
 
-  function handleSubmit(event: FormEvent) {
+  function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!repo) {
       setError("invalidRepository");

@@ -4,7 +4,6 @@ import { createRootRouteWithContext, HeadContent, Scripts, useRouterState } from
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { ErrorFallback } from "@/components/error-fallback";
 import { ThemeProvider } from "@/components/theme-provider";
-import { RateLimitProvider } from "@/lib/github/rate-limit";
 import { defaultLocale, localeForPath } from "@/lib/localization";
 
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
@@ -73,11 +72,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 function RootDocument({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const home = localeForPath(pathname);
-  const content = (
-    <ThemeProvider>
-      <RateLimitProvider>{children}</RateLimitProvider>
-    </ThemeProvider>
-  );
+  const content = <ThemeProvider>{children}</ThemeProvider>;
 
   return (
     <html lang={home?.lang ?? defaultLocale} dir={home?.dir ?? "ltr"}>
