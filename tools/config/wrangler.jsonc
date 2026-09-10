@@ -49,6 +49,5 @@
   },
   "vars": {
     "SITE_ORIGIN": "https://share.keysi.dev"
-  },
-  "tsconfig": "tsconfig.json"
+  }
 }
