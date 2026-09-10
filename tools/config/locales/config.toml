@@ -1,0 +1,9 @@
+version = 1
+default_locale = "en"
+
+[site]
+name = "share.git"
+url = "https://share.keysi.dev/"
+
+[robots]
+disallow = ["/"]

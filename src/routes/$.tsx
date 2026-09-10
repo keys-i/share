@@ -1,0 +1,698 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, type ErrorComponentProps, notFound, useNavigate } from "@tanstack/react-router";
+import { X } from "lucide-react";
+import * as React from "react";
+import { FileExplorer } from "@/components/file-explorer/file-explorer";
+import { FileViewer } from "@/components/file-explorer/file-viewer";
+import { MinimalRepoHeader, RepoHeader } from "@/components/file-explorer/repo-header";
+import { LandingPage } from "@/components/landing-page";
+import { RepoAccessDialog } from "@/components/repo-access-dialog";
+import { RepoErrorBoundary } from "@/components/repo-error-boundary";
+import { RepoPending } from "@/components/repo-pending";
+import { Button } from "@/components/ui/button";
+import { CACHE_FIVE_MINUTES, CACHE_TEN_MINUTES } from "@/lib/constants";
+import {
+  getBranches,
+  getCommitHistory,
+  getContributors,
+  getDirectoryContentDirect,
+  getDirectoryTree,
+  getFileContent,
+  getRepoInfo,
+  getTotalCommitCount,
+} from "@/lib/github";
+import { RateLimitError } from "@/lib/github/api";
+import { useRateLimit } from "@/lib/github/rate-limit";
+import { defaultLocale, loadLocale } from "@/lib/localization";
+import { parseRepoPath } from "@/lib/route-utils";
+import { normalizeShareId, repositoryShortcut, resolveSharedRepo } from "@/lib/shares";
+import { findNode } from "@/lib/tree-utils";
+import type { TreeNode } from "@/lib/types/github";
+
+function RouteComponent() {
+  const { shortcut, content } = Route.useLoaderData();
+  return shortcut && content ? (
+    <LandingPage key={shortcut} initialRepository={shortcut} content={content} />
+  ) : (
+    <RepositoryBrowser />
+  );
+}
+
+function RepositoryBrowser() {
+  const params = Route.useParams();
+  const navigate = useNavigate();
+  const loaderData = Route.useLoaderData();
+  const queryClient = useQueryClient();
+
+  // Parse URL
+  const splatPath = params._splat || "";
+  const parsed = parseRepoPath(splatPath);
+
+  const owner = parsed?.owner || "";
+  const repo = loaderData.share?.repo ?? parsed?.repo ?? "";
+  const routePath = `${owner}/${parsed?.repo ?? ""}`;
+  const githubToken = loaderData.share ? `share:${routePath}` : "";
+
+  // Initialize rate limit tracking - this will poll every 60 seconds
+  // and update when API calls are made
+  useRateLimit(githubToken || undefined);
+
+  const {
+    data: clientRepoInfo,
+    isLoading: isRepoInfoLoading,
+    error: repoInfoError,
+  } = useQuery({
+    queryKey: ["getRepoInfo", owner, repo, githubToken],
+    queryFn: () => getRepoInfo(owner, repo, githubToken),
+    enabled: Boolean(owner && repo),
+    staleTime: CACHE_FIVE_MINUTES,
+    retry: false,
+  });
+
+  const repoInfo = clientRepoInfo;
+
+  // Fetch branches client-side only after repo info confirms access
+  // For unauthenticated users, this prevents wasting API quota on inaccessible repos
+  const {
+    data: clientBranches,
+    isLoading: isBranchesLoading,
+    error: branchesError,
+    refetch: refetchBranches,
+  } = useQuery({
+    queryKey: ["getBranches", owner, repo, githubToken],
+    queryFn: () => getBranches(owner, repo, githubToken),
+    enabled: Boolean(owner && repo && repoInfo),
+    staleTime: CACHE_FIVE_MINUTES,
+    retry: false,
+  });
+
+  const branchesData = clientBranches;
+
+  // For unauthenticated users, wait for repo info first (to check access),
+  // then wait for branches if repo is accessible
+  // Don't show loading if there's an error
+  const isInitialLoading = !repoInfoError && (isRepoInfoLoading || (repoInfo && isBranchesLoading));
+
+  // Fetch contributors
+  const { data: contributorsData } = useQuery({
+    queryKey: ["getContributors", owner, repo, githubToken],
+    queryFn: () => getContributors(owner, repo, githubToken),
+    enabled: Boolean(owner && repo && repoInfo),
+    staleTime: CACHE_TEN_MINUTES,
+    retry: false,
+  });
+
+  // Determine branch from URL or default
+  // IMPORTANT: Don't fallback to "main" - wait for repoInfo to provide the actual default branch
+  // This prevents issues with repos that use different default branches (e.g., "canary" for vercel/next.js)
+  const currentBranch = parsed?.branch || repoInfo?.defaultBranch;
+  const viewType = parsed?.viewType || "tree";
+  const currentPath = parsed?.path || "";
+
+  // Determine if we're showing a file or directory based on viewType
+  const isFileView = viewType === "blob";
+  const isCommitsView = viewType === "commits";
+
+  const [historyPage, setHistoryPage] = React.useState<number>(1);
+  const [mobileExplorerOpen, setMobileExplorerOpen] = React.useState<boolean>(false);
+  const [showBranches, setShowBranches] = React.useState<boolean>(false);
+
+  // Navigation helper to update URL
+  const navigateTo = React.useCallback(
+    (newViewType: "tree" | "blob" | "commits", newBranch: string, newPath: string) => {
+      const splatPath = newPath
+        ? `${routePath}/${newViewType}/${newBranch}/${newPath}`
+        : `${routePath}/${newViewType}/${newBranch}`;
+      navigate({
+        to: "/$",
+        params: { _splat: splatPath },
+      });
+    },
+    [navigate, routePath],
+  );
+
+  // Fetch root-level tree only (lazy loading for subdirectories)
+  const {
+    data: rootTreeData,
+    isLoading: isTreeLoading,
+    error: treeError,
+  } = useQuery({
+    queryKey: ["getDirectoryTree", owner, repo, currentBranch, "", githubToken],
+    queryFn: () => {
+      // currentBranch is guaranteed to be defined when enabled=true
+      return getDirectoryTree(owner, repo, currentBranch as string, "", githubToken);
+    },
+    enabled: Boolean(owner && repo && currentBranch && repoInfo),
+    staleTime: CACHE_FIVE_MINUTES,
+    retry: false,
+  });
+
+  // Store complete tree data with loaded children
+  const [treeData, setTreeData] = React.useState<TreeNode[] | undefined>(undefined);
+
+  // Track which paths are currently loading
+  const [loadingPaths, setLoadingPaths] = React.useState<Set<string>>(new Set());
+
+  // Track which paths have errors
+  const [errorPaths, setErrorPaths] = React.useState<Map<string, string>>(new Map());
+
+  // Use refs to ensure mutation always has access to latest values
+  const ownerRef = React.useRef(owner);
+  const repoRef = React.useRef(repo);
+  const currentBranchRef = React.useRef(currentBranch);
+  const githubTokenRef = React.useRef(githubToken);
+
+  // Update refs when values change
+  React.useEffect(() => {
+    ownerRef.current = owner;
+    repoRef.current = repo;
+    currentBranchRef.current = currentBranch;
+    githubTokenRef.current = githubToken;
+  }, [owner, repo, currentBranch, githubToken]);
+
+  // Update treeData when rootTreeData changes
+  React.useEffect(() => {
+    if (rootTreeData) {
+      setTreeData(rootTreeData);
+    }
+  }, [rootTreeData]);
+
+  // Mutation to load children for a specific directory
+  const loadChildrenMutation = useMutation({
+    mutationFn: async (path: string) => {
+      setLoadingPaths((prev) => new Set(prev).add(path));
+      // Clear any previous error for this path
+      setErrorPaths((prev) => {
+        const next = new Map(prev);
+        next.delete(path);
+        return next;
+      });
+      try {
+        // Use refs to always get latest values
+        // currentBranchRef.current is guaranteed to be defined because the mutation
+        // is only triggered from UI interactions after the branch is loaded
+        const result = await getDirectoryTree(
+          ownerRef.current,
+          repoRef.current,
+          currentBranchRef.current as string,
+          path,
+          githubTokenRef.current,
+        );
+        return result;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Failed to load folder";
+        setErrorPaths((prev) => new Map(prev).set(path, errorMessage));
+        throw error;
+      } finally {
+        setLoadingPaths((prev) => {
+          const next = new Set(prev);
+          next.delete(path);
+          return next;
+        });
+      }
+    },
+    onSuccess: (children, path) => {
+      setTreeData((prevTree) => {
+        if (!prevTree) return prevTree;
+
+        // Helper to update a node in the tree with new children
+        const updateNodeChildren = (nodes: TreeNode[]): TreeNode[] => {
+          return nodes.map((node) => {
+            if (node.path === path) {
+              return { ...node, children };
+            }
+            if (node.children) {
+              return { ...node, children: updateNodeChildren(node.children) };
+            }
+            return node;
+          });
+        };
+
+        return updateNodeChildren(prevTree);
+      });
+    },
+  });
+
+  // Handler to load children when expanding a folder
+  const handleLoadChildren = React.useCallback(
+    async (path: string) => {
+      if (loadingPaths.has(path)) return;
+      await loadChildrenMutation.mutateAsync(path);
+    },
+    [loadChildrenMutation, loadingPaths],
+  );
+
+  // Handler to preload children on hover (like preload="intent" in TanStack Router)
+  const handleHover = React.useCallback(
+    (node: TreeNode) => {
+      // Only preload folders that don't have children loaded yet and aren't already loading
+      if (node.type === "tree" && (!node.children || node.children.length === 0) && !loadingPaths.has(node.path)) {
+        // Preload the children
+        loadChildrenMutation.mutate(node.path);
+      }
+    },
+    [loadChildrenMutation, loadingPaths],
+  );
+
+  // Preload handler for file viewer (preload directory content on hover)
+  const handleDirectoryHover = React.useCallback(
+    (path: string, type: "tree" | "blob") => {
+      // Use refs to always get latest values
+      const currentOwner = ownerRef.current;
+      const currentRepo = repoRef.current;
+      const branch = currentBranchRef.current;
+      const token = githubTokenRef.current;
+
+      // Only preload directories
+      if (type === "tree" && currentOwner && currentRepo && branch) {
+        // Prefetch the directory content
+        queryClient.prefetchQuery({
+          queryKey: ["getDirectoryContentDirect", currentOwner, currentRepo, path, branch, token],
+          queryFn: () => getDirectoryContentDirect(currentOwner, currentRepo, path, branch, token),
+          staleTime: CACHE_FIVE_MINUTES,
+        });
+      }
+    },
+    [queryClient],
+  );
+
+  // Find the selected file node from tree if viewing a file
+  const selectedFile = React.useMemo(() => {
+    if (!isFileView || !treeData || !currentPath) return null;
+    return findNode(treeData, currentPath);
+  }, [isFileView, treeData, currentPath]);
+
+  // Fetch directory content when viewing a directory (using direct API, no treeData needed)
+  const {
+    data: directoryData,
+    isLoading: isDirectoryLoading,
+    error: directoryError,
+  } = useQuery({
+    queryKey: ["getDirectoryContentDirect", owner, repo, currentPath, currentBranch, githubToken],
+    queryFn: () => getDirectoryContentDirect(owner, repo, currentPath, currentBranch as string, githubToken),
+    enabled: Boolean(!isFileView && !isCommitsView && owner && repo && currentBranch && repoInfo),
+    retry: false,
+  });
+
+  // Fetch file content
+  const {
+    data: fileData,
+    isLoading: isFileLoading,
+    error: fileError,
+  } = useQuery({
+    queryKey: ["getFileContent", owner, repo, currentPath, currentBranch, githubToken],
+    queryFn: () => getFileContent(owner, repo, currentPath, currentBranch as string, selectedFile?.size, githubToken),
+    enabled: Boolean(isFileView && currentPath && owner && repo && currentBranch && repoInfo),
+    retry: false,
+  });
+
+  // Fetch total commit count for the repo
+  const { data: totalCommitCount } = useQuery({
+    queryKey: ["getTotalCommitCount", owner, repo, currentBranch, githubToken],
+    queryFn: () => getTotalCommitCount(owner, repo, currentBranch as string, githubToken),
+    enabled: Boolean(currentBranch && owner && repo && repoInfo),
+  });
+
+  // Fetch commit history when showing commits view
+  const { data: commitHistoryData, isLoading: isHistoryLoading } = useQuery({
+    queryKey: ["getCommitHistory", owner, repo, currentPath, currentBranch, historyPage, githubToken],
+    queryFn: () => getCommitHistory(owner, repo, currentPath, currentBranch as string, historyPage, 30, githubToken),
+    enabled: Boolean(isCommitsView && currentBranch && owner && repo && repoInfo),
+  });
+
+  // Handle branch change - navigate to tree view of root with new branch
+  const handleBranchChange = React.useCallback(
+    (branch: string) => {
+      navigateTo("tree", branch, "");
+    },
+    [navigateTo],
+  );
+
+  // Handle showing commit history
+  const handleShowHistory = React.useCallback(() => {
+    if (!currentBranch) return;
+    setHistoryPage(1);
+    navigateTo("commits", currentBranch, currentPath);
+  }, [navigateTo, currentBranch, currentPath]);
+
+  // Handle closing commit history - go back to tree/blob view
+  const handleCloseHistory = React.useCallback(() => {
+    if (!currentBranch) return;
+    setHistoryPage(1);
+    if (currentPath) {
+      // Check if the current path is a file or directory
+      const node = treeData ? findNode(treeData, currentPath) : null;
+      if (node?.type === "blob") {
+        navigateTo("blob", currentBranch, currentPath);
+      } else {
+        navigateTo("tree", currentBranch, currentPath);
+      }
+    } else {
+      navigateTo("tree", currentBranch, "");
+    }
+  }, [navigateTo, currentBranch, currentPath, treeData]);
+
+  // Handle pagination
+  const handlePrevPage = React.useCallback(() => {
+    setHistoryPage((prev) => Math.max(1, prev - 1));
+  }, []);
+
+  const handleNextPage = React.useCallback(() => {
+    if (commitHistoryData?.hasMore) {
+      setHistoryPage((prev) => prev + 1);
+    }
+  }, [commitHistoryData?.hasMore]);
+
+  // Handle file selection from explorer
+  const handleFileSelect = React.useCallback(
+    (node: TreeNode) => {
+      if (!currentBranch) return;
+      if (node.type === "blob") {
+        navigateTo("blob", currentBranch, node.path);
+      } else {
+        navigateTo("tree", currentBranch, node.path);
+      }
+    },
+    [navigateTo, currentBranch],
+  );
+
+  // Handle file selection from directory view
+  const handleFileSelectFromDir = React.useCallback(
+    (path: string) => {
+      if (!currentBranch) return;
+      navigateTo("blob", currentBranch, path);
+    },
+    [navigateTo, currentBranch],
+  );
+
+  // Handle breadcrumb/directory navigation
+  const handleNavigate = React.useCallback(
+    (path: string) => {
+      if (!currentBranch) return;
+      navigateTo("tree", currentBranch, path);
+    },
+    [navigateTo, currentBranch],
+  );
+
+  // Close mobile explorer when a file is selected
+  const handleMobileFileSelect = React.useCallback(
+    (node: TreeNode) => {
+      handleFileSelect(node);
+      setMobileExplorerOpen(false);
+    },
+    [handleFileSelect],
+  );
+
+  const branchNames = branchesData?.map((b) => b.name) ?? [];
+  const isContentLoading = isFileView ? isFileLoading : isDirectoryLoading;
+  // Check for rate limit errors first (more specific than not-found)
+  const isRateLimitErr = (error: Error | null) => {
+    if (!error) return false;
+    if (error instanceof RateLimitError) return true;
+    if (error.name === "RateLimitError") return true;
+    return error.message?.toLowerCase().includes("rate limit");
+  };
+
+  // Check for rate limit errors in mutation errors (tree expansion)
+  const hasTreeMutationRateLimitError = React.useMemo(() => {
+    for (const errorMessage of errorPaths.values()) {
+      if (errorMessage.toLowerCase().includes("rate limit")) {
+        return true;
+      }
+    }
+    return false;
+  }, [errorPaths]);
+
+  const clientRateLimitError =
+    isRateLimitErr(repoInfoError as Error | null) ||
+    isRateLimitErr(branchesError as Error | null) ||
+    isRateLimitErr(fileError as Error | null) ||
+    isRateLimitErr(directoryError as Error | null) ||
+    hasTreeMutationRateLimitError;
+
+  // Show loading state while fetching initial data for unauthenticated users
+  if (isInitialLoading) {
+    return <RepoPending />;
+  }
+
+  if (clientRateLimitError) {
+    return (
+      <div className="flex flex-col bg-muted min-h-screen">
+        <MinimalRepoHeader owner={owner} repo={repo} />
+        <div className="flex gap-2 lg:gap-4 p-2 lg:p-4">
+          <div className="hidden lg:block sticky top-4 h-[calc(100vh-2rem)] shrink-0">
+            <FileExplorer tree={[]} isTreeLoading={false} title="Files" className="w-80 h-full" />
+          </div>
+          <FileViewer
+            file={null}
+            directory={null}
+            isLoading={true}
+            repoName={repo}
+            currentPath={currentPath}
+            className="flex-1 min-w-0"
+          />
+        </div>
+        <RepoAccessDialog
+          open={true}
+          onOpenChange={() => {}}
+          repoOwner={owner}
+          repoName={repo}
+          defaultBranch={currentBranch}
+          variant={githubToken ? "rate-limit-wait" : "rate-limit"}
+        />
+      </div>
+    );
+  }
+
+  // Handle tree-level rate limit errors (tree is fetched client-side after loader)
+  if (treeError instanceof RateLimitError || treeError?.message?.toLowerCase().includes("rate limit")) {
+    return (
+      <div className="flex flex-col bg-muted min-h-screen">
+        {repoInfo && <RepoHeader repo={repoInfo} https={`https://github.com/${owner}/${repo}.git`} />}
+        <div className="flex gap-2 lg:gap-4 p-2 lg:p-4">
+          <div className="hidden lg:block sticky top-4 h-[calc(100vh-2rem)] shrink-0">
+            <FileExplorer tree={[]} isTreeLoading={false} title="Files" className="w-80 h-full" />
+          </div>
+          <FileViewer
+            file={null}
+            directory={null}
+            isLoading={true}
+            repoName={repo}
+            currentPath={currentPath}
+            className="flex-1 min-w-0"
+          />
+        </div>
+        <RepoAccessDialog
+          open={true}
+          onOpenChange={() => {}}
+          repoOwner={owner}
+          repoName={repo}
+          defaultBranch={currentBranch}
+          variant={githubToken ? "rate-limit-wait" : "rate-limit"}
+        />
+      </div>
+    );
+  }
+
+  // Only repository metadata errors indicate unavailable access
+  const isNotFoundError = (error: Error | null) => {
+    if (!error) return false;
+    const message = error.message?.toLowerCase() || "";
+    return message.includes("not found") || message.includes("404") || message.includes("403");
+  };
+
+  const clientNotFoundError = !clientRateLimitError && isNotFoundError(repoInfoError as Error | null);
+
+  if (clientNotFoundError) {
+    return (
+      <div className="flex flex-col bg-muted min-h-screen">
+        <MinimalRepoHeader owner={owner} repo={repo} />
+        <div className="flex gap-2 lg:gap-4 p-2 lg:p-4">
+          <div className="hidden lg:block sticky top-4 h-[calc(100vh-2rem)] shrink-0">
+            <FileExplorer tree={[]} isTreeLoading={false} title="Files" className="w-80 h-full" />
+          </div>
+          <FileViewer
+            file={null}
+            directory={null}
+            isLoading={true}
+            repoName={repo}
+            currentPath={currentPath}
+            className="flex-1 min-w-0"
+          />
+        </div>
+        <RepoAccessDialog
+          open={true}
+          onOpenChange={() => {}}
+          repoOwner={owner}
+          repoName={repo}
+          defaultBranch={currentBranch}
+          variant="not-found"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col bg-muted">
+      {/* Repo Header */}
+      {repoInfo && (
+        <RepoHeader
+          repo={repoInfo}
+          https={`https://github.com/${repoInfo.fullName}.git`}
+          repoPath={routePath}
+          contributors={contributorsData?.contributors}
+          totalContributors={contributorsData?.totalCount}
+          branchCount={branchesData?.length}
+          accessToken={githubToken}
+          onShowBranches={() => setShowBranches(true)}
+        />
+      )}
+
+      {branchesError && (
+        <div role="alert" className="flex items-center gap-3 px-4 py-2 text-sm">
+          <span>Could not load the branch list. You can still browse the current branch.</span>
+          <Button variant="outline" size="sm" onClick={() => void refetchBranches()}>
+            Retry branches
+          </Button>
+        </div>
+      )}
+
+      {/* Main content area */}
+      <div className="flex gap-2 lg:gap-4 p-2 lg:p-4">
+        {/* Mobile File Explorer Overlay */}
+        {mobileExplorerOpen && (
+          <>
+            <Button
+              type="button"
+              className="h-auto fixed inset-0 z-40 bg-muted/50 hover:bg-muted/50 lg:hidden cursor-default"
+              onClick={() => setMobileExplorerOpen(false)}
+              aria-label="Close file explorer"
+            />
+            <div className="fixed inset-y-0 left-0 z-50 w-80 max-w-[85vw] lg:hidden shadow-xl animate-in slide-in-from-left duration-200">
+              <div className="relative h-full">
+                <Button
+                  variant={"ghost"}
+                  onClick={() => setMobileExplorerOpen(false)}
+                  className="absolute top-2 right-2 z-10 p-1.5 rounded-md bg-background/80"
+                  aria-label="Close file explorer"
+                >
+                  <X className="size-4" />
+                </Button>
+                <FileExplorer
+                  tree={treeData ?? []}
+                  title="Files"
+                  branch={currentBranch}
+                  branches={branchNames}
+                  showBranches={showBranches}
+                  onBranchChange={handleBranchChange}
+                  onFileSelect={handleMobileFileSelect}
+                  onShowBranchesChange={setShowBranches}
+                  onLoadChildren={handleLoadChildren}
+                  onHover={handleHover}
+                  loadingPaths={loadingPaths}
+                  errorPaths={errorPaths}
+                  className="h-full"
+                />
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Desktop File Explorer */}
+        <div className="hidden lg:block sticky top-4 h-[calc(100vh-2rem)] shrink-0">
+          <FileExplorer
+            tree={treeData ?? []}
+            isTreeLoading={isTreeLoading}
+            loadingPaths={loadingPaths}
+            errorPaths={errorPaths}
+            title="Files"
+            branch={currentBranch}
+            branches={branchNames}
+            showBranches={showBranches}
+            onBranchChange={handleBranchChange}
+            onFileSelect={handleFileSelect}
+            onShowBranchesChange={setShowBranches}
+            onLoadChildren={handleLoadChildren}
+            onHover={handleHover}
+            className="w-80 h-full"
+          />
+        </div>
+
+        {/* File Viewer */}
+        <FileViewer
+          file={fileData?.content ?? null}
+          directory={isFileView || isCommitsView ? null : directoryData}
+          commit={fileData?.commit}
+          commitHistory={commitHistoryData}
+          totalCommits={totalCommitCount}
+          owner={owner}
+          repoName={repo}
+          branch={currentBranch}
+          currentPath={currentPath}
+          historyPage={historyPage}
+          isLoading={isContentLoading}
+          isHistoryLoading={isHistoryLoading}
+          error={fileError?.message ?? null}
+          onNavigate={handleNavigate}
+          onFileSelect={handleFileSelectFromDir}
+          onHover={handleDirectoryHover}
+          onShowHistory={handleShowHistory}
+          onCloseHistory={handleCloseHistory}
+          onPrevPage={handlePrevPage}
+          onNextPage={handleNextPage}
+          onToggleMobileExplorer={() => setMobileExplorerOpen(true)}
+          showHistory={isCommitsView}
+          className="flex-1 min-w-0"
+        />
+      </div>
+    </div>
+  );
+}
+
+function ErrorComponent({ error, reset }: ErrorComponentProps) {
+  const params = Route.useParams();
+  const splatPath = params._splat || "";
+  const parsed = parseRepoPath(splatPath);
+  const owner = parsed?.owner || "";
+  const repo = parsed?.repo || "";
+  const currentBranch = parsed?.branch || "main";
+  const hasToken = normalizeShareId(parsed?.repo ?? "") !== null;
+
+  if (hasToken) {
+    return (
+      <main className="mx-auto max-w-xl space-y-4 px-6 py-20">
+        <h1 className="text-2xl font-semibold">Share unavailable</h1>
+        <p role="alert">{error instanceof Error ? error.message : "This share link is unavailable"}</p>
+        <a href="/" className="underline">
+          Create a new share link
+        </a>
+      </main>
+    );
+  }
+
+  return (
+    <RepoErrorBoundary
+      error={error}
+      reset={reset}
+      owner={owner}
+      repo={repo}
+      currentBranch={currentBranch}
+      hasToken={hasToken}
+    />
+  );
+}
+
+export const Route = createFileRoute("/$")({
+  wrapInSuspense: true,
+  ssr: false,
+  validateSearch: () => ({}),
+  loader: async ({ params }) => {
+    const shortcut = repositoryShortcut(params._splat ?? "");
+    if (shortcut) return { shortcut, share: null, content: await loadLocale(defaultLocale) };
+    const parsed = parseRepoPath(params._splat ?? "");
+    if (!parsed || parsed.owner.startsWith(".") || parsed.owner.startsWith("__")) throw notFound({ routeId: "/$" });
+    return { shortcut: null, share: await resolveSharedRepo(parsed.owner, parsed.repo), content: null };
+  },
+  errorComponent: ErrorComponent,
+  component: RouteComponent,
+});
