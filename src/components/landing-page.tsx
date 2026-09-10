@@ -2,14 +2,11 @@ import { ClientOnly, useNavigate } from "@tanstack/react-router";
 import {
   ArrowDown,
   ArrowUpRight,
-  BookOpen,
   Check,
   CheckCheck,
-  Clock3,
   Code2,
   Copy,
   FolderCode,
-  Github,
   Heart,
   Languages,
   Link2,
@@ -17,8 +14,10 @@ import {
   MessageCircle,
   Server,
   ShieldCheck,
-  Sparkles,
 } from "lucide-react";
+import {
+    SiGithub as Github
+} from "@icons-pack/react-simple-icons";
 import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
@@ -64,9 +63,7 @@ export function LandingPage({
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          (entry.target as HTMLElement).dataset.visible = "true";
-          observer.unobserve(entry.target);
+          (entry.target as HTMLElement).dataset.visible = String(entry.isIntersecting);
         }
       },
       { threshold: 0.2 },
@@ -201,20 +198,18 @@ export function LandingPage({
           </div>
 
           <div className="share-hero-tool" data-shared={Boolean(link)}>
-            <div className="share-mascot" aria-hidden="true">
-              <div className="share-folder-tab" />
+            <div className="share-mascot" data-motion="mascot" aria-hidden="true">
               <span className="share-folder-file">
                 <Code2 />
               </span>
+              <svg className="share-folder-body" viewBox="0 0 124 112" aria-hidden="true">
+                <path d="M3 99V14A11 11 0 0 1 14 3h26a10 10 0 0 1 8 4l12 15h49a12 12 0 0 1 12 12v65a10 10 0 0 1-10 10H13A10 10 0 0 1 3 99Z" />
+              </svg>
               <div className="share-folder-face">
                 <i />
                 <i />
                 <span />
               </div>
-              <Code2 />
-              <span className="share-mascot-spark">
-                <Sparkles />
-              </span>
             </div>
             <section id={`${id}-create-link`} className="share-form-panel" aria-labelledby={`${id}-create-title`}>
               <div className="share-panel-bar">
@@ -346,19 +341,48 @@ export function LandingPage({
             <div className="share-section-heading">
               <h2 id={`${id}-features-title`}>{text.features}</h2>
             </div>
-            <div className="share-feature-grid" data-motion="features">
-              <article className="share-feature share-feature-blue">
-                <ShieldCheck aria-hidden="true" />
+            <div className="share-feature-grid">
+              <article className="share-feature share-feature-blue" data-motion="shield">
+                <div className="share-feature-art share-shield-scene" aria-hidden="true">
+                  <span className="share-protected-file">
+                    <Code2 />
+                  </span>
+                  <ShieldCheck />
+                </div>
                 <h3>{text.readOnly}</h3>
                 <p>{text.readOnlyDescription}</p>
               </article>
-              <article className="share-feature share-feature-yellow">
-                <Github aria-hidden="true" />
+              <article className="share-feature share-feature-yellow" data-motion="github">
+                <div className="share-feature-art share-permission-scene" aria-hidden="true">
+                  <span className="share-permission-ticket">
+                    <Check />
+                  </span>
+                  <span className="share-permission-ticket">
+                    <Check />
+                  </span>
+                  <Github />
+                </div>
                 <h3>{text.appSignIn}</h3>
                 <p>{text.appDescription}</p>
               </article>
-              <article className="share-feature share-feature-lilac">
-                <Clock3 aria-hidden="true" />
+              <article className="share-feature share-feature-lilac" data-motion="clock">
+                <div className="share-feature-art share-clock-scene" aria-hidden="true">
+                  <svg viewBox="0 0 64 64" stroke="currentColor" strokeLinecap="round" aria-hidden="true">
+                    <circle cx="32" cy="32" r="27" fill="#fffef8" />
+                    <line className="share-clock-hand share-clock-hour" x1="32" y1="32" x2="32" y2="19" />
+                    <line className="share-clock-hand share-clock-minute" x1="32" y1="32" x2="32" y2="12" />
+                    <circle cx="32" cy="32" r="2.3" fill="currentColor" stroke="none" />
+                  </svg>
+                  <span className="share-expiry-dots">
+                    <i />
+                    <i />
+                    <i />
+                    <i />
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                </div>
                 <h3>{text.sevenDays}</h3>
                 <p>{text.expiryDescription}</p>
               </article>
@@ -401,9 +425,6 @@ export function LandingPage({
 
         <section className="share-container share-shortcut" aria-labelledby={`${id}-shortcut-title`}>
           <div>
-            <span className="share-mini-icon">
-              <Sparkles aria-hidden="true" />
-            </span>
             <h2 id={`${id}-shortcut-title`}>{text.shortcutTitle}</h2>
             <p>{text.shortcutDescription.replace("{domain}", APP_DOMAIN)}</p>
             <p className="share-fine-print">{text.shortcutWarning}</p>
@@ -430,18 +451,59 @@ export function LandingPage({
             <h2 id={`${id}-use-cases-title`}>{text.useCases}</h2>
           </div>
           <div className="share-use-cases">
-            <article>
-              <MessageCircle aria-hidden="true" />
+            <article data-motion="reviews">
+              <div className="share-use-art share-review-scene" aria-hidden="true">
+                <MessageCircle />
+                <span className="share-typing-dots">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+              </div>
               <h3>{text.reviews}</h3>
               <p>{text.reviewsDescription}</p>
             </article>
-            <article>
-              <FolderCode aria-hidden="true" />
+            <article data-motion="handoff">
+              <div className="share-use-art share-handoff-scene" aria-hidden="true">
+                <FolderCode />
+                <span className="share-handoff-link">
+                  <Link2 />
+                </span>
+              </div>
               <h3>{text.handoffs}</h3>
               <p>{text.handoffsDescription}</p>
             </article>
-            <article>
-              <BookOpen aria-hidden="true" />
+            <article data-motion="learning">
+              <div className="share-use-art share-learning-scene" aria-hidden="true">
+                <svg
+                  viewBox="0 0 64 58"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path className="share-book-cover" d="M4 12Q17 9 31 17Q46 10 60 13L59 47Q44 43 31 51Q17 44 5 47Z" />
+                  <path className="share-book-paper" d="M6 8Q19 7 31 14Q44 6 58 9L57 41Q44 39 31 46Q18 40 6 43Z" />
+                  <path d="M31 14v32M7 44Q19 42 31 49Q44 42 57 45" fill="none" />
+                  <path className="share-book-ink" d="M11 17q8 0 14 4M11 24q6 0 11 3M38 18q7-3 14-2M38 25q6-2 12-2" />
+                  <g className="share-book-page">
+                    <path className="share-book-paper" d="M31 14Q44 6 58 9L57 41Q44 39 31 46Z" />
+                    <path className="share-book-ink" d="M38 18q7-3 14-2M38 25q6-2 12-2" />
+                  </g>
+                  <g className="share-book-page">
+                    <path className="share-book-paper" d="M31 14Q44 6 58 9L57 41Q44 39 31 46Z" />
+                    <path className="share-book-ink" d="M38 18q7-3 14-2M38 25q6-2 12-2" />
+                  </g>
+                  <g className="share-book-page">
+                    <path className="share-book-paper" d="M31 14Q44 6 58 9L57 41Q44 39 31 46Z" />
+                    <path className="share-book-ink" d="M38 18q7-3 14-2M38 25q6-2 12-2" />
+                  </g>
+                  <g className="share-book-page">
+                    <path className="share-book-paper" d="M31 14Q44 6 58 9L57 41Q44 39 31 46Z" />
+                    <path className="share-book-ink" d="M38 18q7-3 14-2M38 25q6-2 12-2" />
+                  </g>
+                </svg>
+              </div>
               <h3>{text.learning}</h3>
               <p>{text.learningDescription}</p>
             </article>

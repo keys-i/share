@@ -66,10 +66,9 @@ describe("landing page", () => {
     });
   });
 
-  it("starts section animations once on entry and disconnects on unmount", () => {
+  it("runs each scene only while visible and disconnects on unmount", () => {
     let notify: (entries: Partial<IntersectionObserverEntry>[]) => void = () => {};
     const observe = vi.fn();
-    const unobserve = vi.fn();
     const disconnect = vi.fn();
     vi.stubGlobal(
       "IntersectionObserver",
@@ -78,20 +77,33 @@ describe("landing page", () => {
           notify = callback;
         }
         observe = observe;
-        unobserve = unobserve;
         disconnect = disconnect;
       },
     );
     const { container, unmount } = render(<LandingPage content={content} />);
-    const target = container.querySelector('[data-motion="steps"]') as HTMLElement;
+    const target = container.querySelector('[data-motion="shield"]') as HTMLElement;
+    const clock = container.querySelector('[data-motion="clock"]') as HTMLElement;
     expect(observe).toHaveBeenCalledWith(target);
+    expect(observe).toHaveBeenCalledWith(clock);
     act(() => notify([{ target, isIntersecting: false }]));
-    expect(target).not.toHaveAttribute("data-visible");
+    expect(target).toHaveAttribute("data-visible", "false");
     act(() => notify([{ target, isIntersecting: true }]));
     expect(target).toHaveAttribute("data-visible", "true");
-    expect(unobserve).toHaveBeenCalledWith(target);
+    expect(clock).not.toHaveAttribute("data-visible");
+    act(() => notify([{ target, isIntersecting: false }]));
+    expect(target).toHaveAttribute("data-visible", "false");
     unmount();
     expect(disconnect).toHaveBeenCalledOnce();
+  });
+
+  it("keeps content visible without starting motion when reduced motion is preferred", () => {
+    vi.stubGlobal("matchMedia", () => ({ matches: true }));
+    const observer = vi.fn();
+    vi.stubGlobal("IntersectionObserver", observer);
+    render(<LandingPage content={content} />);
+    expect(observer).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "Features" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Sign in and create link" })).toBeVisible();
   });
 
   it("rejects lookalike GitHub URLs before starting authorization", () => {
