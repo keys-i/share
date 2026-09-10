@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/keys-i/share/compare/v1.1.0...v1.1.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* remove invalid Wrangler tsconfig override ([3dd612e](https://github.com/keys-i/share/commit/3dd612ee7ba56a35ccf968c6bb266859829d5058))
+
 ## [1.1.0](https://github.com/keys-i/share/compare/v1.0.0...v1.1.0) (2026-09-10)
 
 

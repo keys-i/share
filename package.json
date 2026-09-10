@@ -1,7 +1,7 @@
 {
   "name": "share.git",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "PAT-free read-only repository sharing with a GitHub Pages frontend",
   "license": "MIT",
   "engines": {
