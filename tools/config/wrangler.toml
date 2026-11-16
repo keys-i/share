@@ -7,7 +7,6 @@ preview_urls = false
 routes = [
   { pattern = "share.keysi.dev/api", zone_name = "keysi.dev" },
   { pattern = "share.keysi.dev/api/*", zone_name = "keysi.dev" },
-  { pattern = "api.share.keysi.dev", custom_domain = true },
 ]
 
 [[d1_databases]]
