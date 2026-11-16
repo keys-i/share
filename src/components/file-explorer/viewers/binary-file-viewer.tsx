@@ -32,7 +32,7 @@ export function BinaryFileViewer({ file }: BinaryFileViewerProps) {
       <div className="text-center">
         <div className="text-lg font-medium">{file.name}</div>
         <div className="text-sm text-muted-foreground mt-1">
-          {formatFileSize(file.size)} · {ext.toUpperCase()} file
+          {formatFileSize(file.size)}, {ext.toUpperCase()} file
         </div>
       </div>
       <div className="text-sm text-muted-foreground">This file type cannot be previewed in the browser</div>

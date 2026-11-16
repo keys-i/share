@@ -16,7 +16,7 @@ export function AudioViewer({ file }: AudioViewerProps) {
       <audio controls className="w-full max-w-md">
         <source src={file.download_url} type={mimeType} />
         <track kind="captions" />
-        Your browser does not support the audio element.
+        Your browser does not support the audio element
       </audio>
     </div>
   );

@@ -34,8 +34,8 @@ export function RepoAccessDialog({
           <DialogTitle>{waiting ? "GitHub rate limit reached" : "Repository unavailable"}</DialogTitle>
           <DialogDescription>
             {waiting
-              ? "Wait for GitHub's API rate limit to reset, then try again. Public repositories do not require sign-in or a share link."
-              : "GitHub could not return this repository. Check its owner and name. If it is private, ask a repository administrator for a share link."}
+              ? "Wait for GitHub's API rate limit to reset before trying again, with no sign-in or share link needed for public repositories"
+              : "GitHub could not return this repository, so check its owner and name or ask an administrator for a share link if it is private"}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

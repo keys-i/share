@@ -110,8 +110,8 @@ function TokenActiveBadge({ token }: { token?: string }) {
         <PopoverHeader className="gap-2">
           <PopoverTitle>Read-only repository access</PopoverTitle>
           <PopoverDescription className="text-xs leading-relaxed">
-            The repository owner has shared this repository for seven days. They can revoke the underlying token in
-            GitHub to stop access.
+            The repository owner shared this repository for seven days and can revoke the underlying token in GitHub to
+            stop access
           </PopoverDescription>
         </PopoverHeader>
         <a

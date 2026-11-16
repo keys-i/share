@@ -7,7 +7,7 @@ describe("ErrorFallback", () => {
     render(<ErrorFallback />);
 
     expect(screen.getByText("Something went wrong")).toBeInTheDocument();
-    expect(screen.getByText("An unexpected error occurred. Please refresh the page to try again.")).toBeInTheDocument();
+    expect(screen.getByText("An unexpected error occurred, so refresh the page to try again")).toBeInTheDocument();
   });
 
   it("should render refresh button", () => {

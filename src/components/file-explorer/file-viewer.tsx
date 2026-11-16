@@ -268,7 +268,6 @@ export function FileViewer({
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0">
               <span className="font-mono">{displayCommit.sha.substring(0, 7)}</span>
-              <span>·</span>
               <span>{formatDate(displayCommit.date)}</span>
               <Button
                 className="flex items-center gap-1 ml-2 px-2 py-1 rounded-md border hover:bg-accent"
@@ -345,7 +344,7 @@ export function FileViewer({
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               {isTextBased ? (
                 <span>
-                  {lineCount} lines ({countLines(decodedContent)} loc) · {formatFileSize(file.size)}
+                  {lineCount} lines ({countLines(decodedContent)} loc), {formatFileSize(file.size)}
                 </span>
               ) : (
                 <span>{formatFileSize(file.size)}</span>

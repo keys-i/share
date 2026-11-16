@@ -57,7 +57,7 @@ describe("VideoViewer", () => {
 
     // The text content should be inside the video element
     const video = document.querySelector("video");
-    expect(video?.textContent).toContain("Your browser does not support the video tag.");
+    expect(video?.textContent).toContain("Your browser does not support the video tag");
   });
 
   it("should include captions track for accessibility", () => {

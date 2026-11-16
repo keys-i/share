@@ -550,7 +550,7 @@ function RepositoryBrowser() {
 
       {branchesError && (
         <div role="alert" className="flex items-center gap-3 px-4 py-2 text-sm">
-          <span>Could not load the branch list. You can still browse the current branch.</span>
+          <span>Could not load the branch list, but you can still browse the current branch</span>
           <Button variant="outline" size="sm" onClick={() => void refetchBranches()}>
             Retry branches
           </Button>

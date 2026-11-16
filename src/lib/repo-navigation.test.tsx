@@ -71,7 +71,7 @@ it("shows a rate-limit message without requiring access for a public repository"
   const { unmount } = render(<RouterProvider router={router} />, { container: document });
   try {
     expect(await screen.findByRole("heading", { name: "GitHub rate limit reached" })).toBeVisible();
-    expect(screen.getByText(/Public repositories do not require sign-in or a share link/)).toBeVisible();
+    expect(screen.getByText(/no sign-in or share link needed for public repositories/i)).toBeVisible();
     expect(screen.queryByRole("button", { name: "Create a private share link" })).not.toBeInTheDocument();
     expect(screen.queryByText("Repository access required")).not.toBeInTheDocument();
   } finally {

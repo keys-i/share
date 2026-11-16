@@ -122,7 +122,7 @@ export function CodeViewer({ file, wrapText = false }: CodeViewerProps) {
     return (
       <div className="p-4">
         <p className="mb-4 text-sm text-muted-foreground">
-          Large file: syntax highlighting and line numbers are disabled.
+          Syntax highlighting and line numbers are disabled for this large file
         </p>
         <pre className={cn("font-mono text-sm", wrapText ? "whitespace-pre-wrap break-all" : "overflow-x-auto")}>
           {decodedContent}

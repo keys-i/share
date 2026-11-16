@@ -63,7 +63,7 @@ describe("AudioViewer", () => {
     render(<AudioViewer file={file} />);
 
     const audio = document.querySelector("audio");
-    expect(audio?.textContent).toContain("Your browser does not support the audio element.");
+    expect(audio?.textContent).toContain("Your browser does not support the audio element");
   });
 
   it("should include captions track for accessibility", () => {

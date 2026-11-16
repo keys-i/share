@@ -52,14 +52,14 @@ export async function getBranches(owner: string, repo: string, token: string): P
   } catch (error) {
     // Check for octokit RequestError with status 403 (rate limit)
     if (error && typeof error === "object" && "status" in error && (error as { status: number }).status === 403) {
-      throw new RateLimitError("GitHub API rate limit exceeded. Please try again later.");
+      throw new RateLimitError("GitHub API rate limit exceeded, so try again later");
     }
     // Check for abort/timeout errors first
     if (error instanceof DOMException && error.name === "TimeoutError") {
-      throw new RateLimitError("Request timed out. GitHub API may be rate limited. Please try again later.");
+      throw new RateLimitError("The request timed out, possibly because GitHub is rate limited, so try again later");
     }
     if (error instanceof DOMException && error.name === "AbortError") {
-      throw new RateLimitError("Request was aborted. Please try again later.");
+      throw new RateLimitError("The request was cancelled, so try again later");
     }
     if (error instanceof Error) {
       const message = error.message.toLowerCase();
@@ -75,7 +75,7 @@ export async function getBranches(owner: string, repo: string, token: string): P
         message.includes("timed out") ||
         message.includes("aborted")
       ) {
-        throw new RateLimitError("GitHub API rate limit exceeded. Please try again later.");
+        throw new RateLimitError("GitHub API rate limit exceeded, so try again later");
       }
     }
     console.error("Failed to fetch branches:", error);
@@ -97,7 +97,7 @@ export class RateLimitError extends Error {
 export async function getRepoInfo(owner: string, repo: string, token: string): Promise<RepoInfo> {
   // Debug: simulate rate limit for testing UI
   if (SIMULATE_RATE_LIMIT) {
-    throw new RateLimitError("[Simulated] GitHub API rate limit exceeded.");
+    throw new RateLimitError("[Simulated] GitHub API rate limit exceeded");
   }
 
   const octokit = createGitHubClient(token);
@@ -143,15 +143,15 @@ export async function getRepoInfo(owner: string, repo: string, token: string): P
 
     // Check for octokit RequestError with status 403 (rate limit)
     if (error && typeof error === "object" && "status" in error && (error as { status: number }).status === 403) {
-      throw new RateLimitError("GitHub API rate limit exceeded. Please try again later.");
+      throw new RateLimitError("GitHub API rate limit exceeded, so try again later");
     }
 
     // Check for abort/timeout errors
     if (error instanceof DOMException && error.name === "TimeoutError") {
-      throw new RateLimitError("Request timed out. GitHub API may be rate limited. Please try again later.");
+      throw new RateLimitError("The request timed out, possibly because GitHub is rate limited, so try again later");
     }
     if (error instanceof DOMException && error.name === "AbortError") {
-      throw new RateLimitError("Request was aborted. Please try again later.");
+      throw new RateLimitError("The request was cancelled, so try again later");
     }
     if (error instanceof Error) {
       const message = error.message.toLowerCase();
@@ -162,7 +162,7 @@ export async function getRepoInfo(owner: string, repo: string, token: string): P
         message.includes("timed out") ||
         message.includes("aborted")
       ) {
-        throw new RateLimitError("GitHub API rate limit exceeded. Please try again later.");
+        throw new RateLimitError("GitHub API rate limit exceeded, so try again later");
       }
     }
     throw error;
@@ -225,14 +225,14 @@ export async function getContributors(owner: string, repo: string, token: string
 function checkRateLimitError(error: unknown): void {
   // Check for octokit RequestError with status 403 (rate limit)
   if (error && typeof error === "object" && "status" in error && (error as { status: number }).status === 403) {
-    throw new RateLimitError("GitHub API rate limit exceeded. Please try again later.");
+    throw new RateLimitError("GitHub API rate limit exceeded, so try again later");
   }
   // Check for abort/timeout errors
   if (error instanceof DOMException && error.name === "TimeoutError") {
-    throw new RateLimitError("Request timed out. GitHub API may be rate limited. Please try again later.");
+    throw new RateLimitError("The request timed out, possibly because GitHub is rate limited, so try again later");
   }
   if (error instanceof DOMException && error.name === "AbortError") {
-    throw new RateLimitError("Request was aborted. Please try again later.");
+    throw new RateLimitError("The request was cancelled, so try again later");
   }
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
@@ -243,7 +243,7 @@ function checkRateLimitError(error: unknown): void {
       message.includes("timed out") ||
       message.includes("aborted")
     ) {
-      throw new RateLimitError("GitHub API rate limit exceeded. Please try again later.");
+      throw new RateLimitError("GitHub API rate limit exceeded, so try again later");
     }
   }
 }
@@ -525,7 +525,7 @@ export async function getFileContent(
 
   if (fileSize && fileSize > MAX_FILE_SIZE_RAW) {
     throw new Error(
-      `File is too large (${(fileSize / (1024 * 1024)).toFixed(2)} MB). Files larger than 100MB are not supported.`,
+      `This ${(fileSize / (1024 * 1024)).toFixed(2)} MB file is too large because it exceeds the 100 MB display limit`,
     );
   }
 
@@ -621,7 +621,7 @@ export async function getFileContent(
   } catch (error) {
     if (error instanceof Error) {
       if (error.message.includes("too_large")) {
-        throw new Error("File is too large to display. Please download it directly.");
+        throw new Error("This file is too large to display, so download it directly");
       }
       if (error.message.includes("Not Found")) {
         throw new Error("File not found");

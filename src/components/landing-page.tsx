@@ -248,8 +248,10 @@ export function LandingPage({
                         {copied ? <Check /> : <Copy />}
                       </Button>
                     </div>
-                    <p aria-live="polite">
-                      {copied ? `${text.copied}. ` : ""}
+                    <span className="sr-only" aria-live="polite">
+                      {copied ? text.copied : ""}
+                    </span>
+                    <p>
                       <a className="share-text-link" href={link}>
                         {text.openRepository}
                         <ArrowUpRight aria-hidden="true" />

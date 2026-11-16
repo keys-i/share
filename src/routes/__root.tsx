@@ -19,7 +19,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     const { _splat, locale } = params as { _splat?: string; locale?: string };
     const [owner, repo] = (_splat || "").split("/").filter(Boolean);
     const home = !_splat ? localeForPath(locale ? `/${locale}/` : "/") : undefined;
-    const title = home?.title ?? (owner && repo ? `${owner} · share.git` : "share.git");
+    const title = home?.title ?? (owner && repo ? `${owner} | share.git` : "share.git");
 
     return {
       meta: [
