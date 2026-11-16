@@ -1,19 +1,19 @@
 # Self-host share.git
 
-share.git is MIT licensed. Host its static frontend on GitHub Pages and its API on Cloudflare Workers with D1. You need Node.js 24.18 or newer, npm, a GitHub App, a Cloudflare account, and domains for the site and API.
+share.git is MIT licensed. Host its static frontend on GitHub Pages and its `/api/*` routes on Cloudflare Workers with D1. You need Node.js 24.18 or newer, npm, a GitHub App, a Cloudflare account, and a domain for the site.
 
 ## 1. Configure the domains
 
-Choose a frontend hostname, for example `share.example.com`, and an API hostname, for example `api.share.example.com`.
+Choose a hostname, for example `share.example.com`. The site and API share that origin, with the API under `/api/`.
 
-1. In `tools/config/domains.config.ts`, set `app` and `landing` to the frontend hostname and `api` to the API hostname.
+1. In `tools/config/domains.config.ts`, set `app`, `landing` and `api` to the hostname.
 2. In `tools/config/locales/config.toml`, set `[site].url` to `https://share.example.com/`. It must match `domains.app`; the build rejects a mismatch.
-3. In `tools/config/wrangler.jsonc`, set the Worker `name`, `routes[0].pattern`, and `vars.SITE_ORIGIN` (`https://share.example.com`).
-4. Point the frontend domain to GitHub Pages, enable HTTPS, and configure the API hostname in the Cloudflare zone used by the Worker.
+3. In `tools/config/wrangler.toml`, set the Worker `name`, `/api` route patterns, and `vars.SITE_ORIGIN` (`https://share.example.com`).
+4. Point the domain to GitHub Pages, enable HTTPS, and attach the `/api` route patterns to the Worker in the same Cloudflare zone.
 
 ## 2. Create the GitHub App
 
-Create a GitHub App with **Contents: read-only** and the default Metadata read permission. Use the frontend origin as its homepage and `https://YOUR_API_HOST/api/auth/callback` as its callback URL. Leave webhooks disabled and enable expiring user access tokens.
+Create a GitHub App with **Contents: read-only** and the default Metadata read permission. Use the site origin as its homepage and `https://YOUR_HOST/api/auth/callback` as its callback URL. Leave webhooks disabled and enable expiring user access tokens.
 
 Install the App on **selected repositories** only. A repository administrator must sign in to create a link.
 
@@ -25,14 +25,14 @@ From the project root:
 
 ```sh
 npm ci --ignore-scripts --allow-git=none
-npx --no-install wrangler d1 create shares --config tools/config/wrangler.jsonc
+npx --no-install wrangler d1 create shares --config tools/config/wrangler.toml
 ```
 
 Put the returned ID in `d1_databases[0].database_id`, set its name in `d1_databases[0].database_name`, and set `vars.GITHUB_CLIENT_ID` to the App's public client ID (not its numeric App ID). Then add the App secrets:
 
 ```sh
-npx --no-install wrangler secret put GITHUB_CLIENT_SECRET --config tools/config/wrangler.jsonc
-npx --no-install wrangler secret put GITHUB_APP_PRIVATE_KEY --config tools/config/wrangler.jsonc
+npx --no-install wrangler secret put GITHUB_CLIENT_SECRET --config tools/config/wrangler.toml
+npx --no-install wrangler secret put GITHUB_APP_PRIVATE_KEY --config tools/config/wrangler.toml
 ```
 
 Never commit private keys, secrets, or environment files.

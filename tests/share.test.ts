@@ -4,7 +4,34 @@ import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { normalizeShareId, parseGitHubUrl } from "../src/lib/shares.ts";
+import { apiDocsResponse } from "../src/server/docs.ts";
 import { handleShareRequest, type ShareEnv } from "../src/server/shares.ts";
+
+test("API reference serves Scalar and the checked contract", async () => {
+  const page = apiDocsResponse(new Request("https://share.keysi.dev/api/"));
+  assert.ok(page);
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /\/api\/reference\.js/);
+  assert.equal(page.headers.get("x-robots-tag"), "index, follow");
+
+  const reference = apiDocsResponse(new Request("https://share.keysi.dev/api/reference.js"));
+  assert.ok(reference);
+  const script = await reference.text();
+  assert.match(script, /#172d3b/);
+  assert.match(script, /#b6ddff/);
+
+  const spec = apiDocsResponse(new Request("https://share.keysi.dev/api/openapi.json"));
+  assert.ok(spec);
+  const contract = await spec.json();
+  assert.equal(contract.openapi, "3.1.0");
+  assert.equal(contract.servers[0].url, "https://share.keysi.dev");
+  assert.ok(contract.paths["/api/shares/{owner}/{shareId}"]);
+
+  const rejected = apiDocsResponse(new Request("https://share.keysi.dev/api/", { method: "POST" }));
+  assert.ok(rejected);
+  assert.equal(rejected.status, 405);
+  assert.equal(apiDocsResponse(new Request("https://share.keysi.dev/api/unknown")), null);
+});
 
 test("App shares authorize admins without storing credentials and isolate repository access", async () => {
   const db = new DatabaseSync(":memory:");
@@ -83,7 +110,7 @@ test("App shares authorize admins without storing credentials and isolate reposi
     return Response.json({ name: "demo" });
   };
   const request = async (path: string, init?: RequestInit) => {
-    const response = await handleShareRequest(new Request(`https://api.share.keysi.dev${path}`, init), env);
+    const response = await handleShareRequest(new Request(`https://share.keysi.dev${path}`, init), env);
     assert.ok(response);
     return response;
   };

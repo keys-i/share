@@ -21,9 +21,9 @@
     "test:ui": "vitest --config tools/config/vitest.config.ts --ui",
     "typecheck": "tsc --project tools/config/tsconfig.json --noEmit",
     "validate": "npm run check && npm run typecheck && npm test && npm run test:pages",
-    "deploy": "wrangler deploy --config tools/config/wrangler.jsonc",
-    "db:migrate": "wrangler d1 migrations apply shares --config tools/config/wrangler.jsonc --local --persist-to .wrangler/state",
-    "dev:api": "wrangler dev --config tools/config/wrangler.jsonc --persist-to .wrangler/state --port 8787",
+    "deploy": "wrangler deploy --config tools/config/wrangler.toml",
+    "db:migrate": "wrangler d1 migrations apply shares --config tools/config/wrangler.toml --local --persist-to .wrangler/state",
+    "dev:api": "wrangler dev --config tools/config/wrangler.toml --persist-to .wrangler/state --port 8787",
     "test:pages": "node --test tests/pages.test.mjs"
   },
   "dependencies": {

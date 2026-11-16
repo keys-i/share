@@ -1,6 +1,7 @@
 import { createHash, randomBytes, sign } from "node:crypto";
 import { getMimeType } from "../lib/file-utils.ts";
 import { normalizeShareId } from "../lib/shares.ts";
+import { apiDocsResponse } from "./docs.ts";
 
 export type ShareEnv = {
   DB: {
@@ -303,7 +304,9 @@ export async function handleShareRequest(request: Request, env: ShareEnv): Promi
   try {
     const origin = request.headers.get("origin");
     if (origin && origin !== env.SITE_ORIGIN) fail(403, "Origin not allowed");
-    if (request.method === "OPTIONS") response = new Response(null, { status: 204, headers });
+    const docs = apiDocsResponse(request);
+    if (docs) response = docs;
+    else if (request.method === "OPTIONS") response = new Response(null, { status: 204, headers });
     else if (url.pathname === "/api/shares")
       fail(410, "PAT sharing was removed; create a link with GitHub App sign-in");
     else {

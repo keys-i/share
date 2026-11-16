@@ -52,9 +52,14 @@ writeFileSync(
   "dist/client/robots.txt",
   robotsTxt(seerProject).replace(
     "Disallow: /",
-    `Disallow: /\n${localeMetadata.map(({ path }) => `Allow: ${path}$`).join("\n")}\nAllow: /assets/\nAllow: /favicon.svg`,
+    `Disallow: /\n${localeMetadata.map(({ path }) => `Allow: ${path}$`).join("\n")}\nAllow: /api/$\nAllow: /assets/\nAllow: /favicon.svg`,
   ),
 );
-writeFileSync("dist/client/sitemap.xml", sitemapXml(seerProject));
+const sitemap = sitemapXml(seerProject);
+if (!sitemap.includes("</urlset>")) throw new Error("The generated sitemap is missing its urlset root");
+writeFileSync(
+  "dist/client/sitemap.xml",
+  sitemap.replace("</urlset>", `  <url>\n    <loc>https://${domains.api}/api/</loc>\n  </url>\n</urlset>`),
+);
 copyFileSync("docs/SELF_HOSTING.md", "dist/client/self-hosting.md");
 copyFileSync("LICENSE", "dist/client/LICENSE");

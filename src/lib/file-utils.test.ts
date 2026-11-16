@@ -33,10 +33,10 @@ it("keeps relative Markdown assets inside the shared repository proxy", () => {
       "keys",
       "demo",
       "feat/demo",
-      `https://api.share.keysi.dev${downloadUrl}`,
+      `https://share.keysi.dev${downloadUrl}`,
     ),
   ).toBe(
-    "https://api.share.keysi.dev/api/github/keys/7m4k-p9rx-2w6c-8h3n/repos/keys/demo/contents/media/my%20image.png?ref=feat%2Fdemo&raw=1#logo",
+    "https://share.keysi.dev/api/github/keys/7m4k-p9rx-2w6c-8h3n/repos/keys/demo/contents/media/my%20image.png?ref=feat%2Fdemo&raw=1#logo",
   );
 });
 

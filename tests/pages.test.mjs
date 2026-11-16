@@ -29,8 +29,10 @@ test("Pages prerenders ten localized homepages and keeps deep links in a noindex
   const robots = readFileSync("dist/client/robots.txt", "utf8");
   assert.match(robots, /Disallow: \/\n/);
   const sitemap = readFileSync("dist/client/sitemap.xml", "utf8");
-  assert.equal((sitemap.match(/<loc>/g) ?? []).length, 10);
+  assert.equal((sitemap.match(/<loc>/g) ?? []).length, 11);
   assert.ok(sitemap.includes(`<loc>https://${domains.app}/</loc>`));
+  assert.ok(sitemap.includes(`<loc>https://${domains.api}/api/</loc>`));
+  assert.match(robots, /Allow: \/api\/\$/);
 
   const pages = localeMetadata.map((entry) => {
     const html = readFileSync(`dist/client${entry.path}index.html`, "utf8");
@@ -58,7 +60,7 @@ test("Pages prerenders ten localized homepages and keeps deep links in a noindex
     assert.ok(sitemap.includes(`<loc>${entry.canonical}</loc>`));
     return html;
   });
-  assert.equal((robots.match(/^Allow: \/.*\$$/gm) ?? []).length, 10);
+  assert.equal((robots.match(/^Allow: \/.*\$$/gm) ?? []).length, 11);
   for (const html of [...pages, fallback]) {
     assert.match(html.slice(0, 1024), /<meta charset="utf-8"/i);
     const policy = html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/)?.[1];

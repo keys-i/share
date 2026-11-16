@@ -126,7 +126,7 @@ describe("getContributors", () => {
 describe("getFileContent", () => {
   it("loads metadata for large shared media before streaming its preview", async () => {
     const share = "test-owner/7m4k-p9rx-2w6c-8h3n";
-    const base = `https://api.share.keysi.dev/api/github/${share}/repos/test-owner/test-repo`;
+    const base = `https://share.keysi.dev/api/github/${share}/repos/test-owner/test-repo`;
     server.use(
       http.get(`${base}/contents/*`, ({ request }) => {
         expect(request.headers.get("accept")).toBe("application/vnd.github.object+json");
@@ -149,7 +149,7 @@ describe("getFileContent", () => {
 
   it("uses the share proxy for raw files and downloads without sending a token", async () => {
     const share = "test-owner/7m4k-p9rx-2w6c-8h3n";
-    const base = `https://api.share.keysi.dev/api/github/${share}/repos/test-owner/test-repo`;
+    const base = `https://share.keysi.dev/api/github/${share}/repos/test-owner/test-repo`;
     server.use(
       http.get(`${base}/contents/*`, ({ request }) => {
         expect(request.headers.get("authorization")).toBeNull();
@@ -159,7 +159,7 @@ describe("getFileContent", () => {
     );
     const result = await getFileContent("test-owner", "test-repo", "my image.png", "feat/demo", 1024, `share:${share}`);
     expect(result.content.download_url).toBe(
-      `https://api.share.keysi.dev/api/github/${share}/repos/test-owner/test-repo/contents/my%20image.png?ref=feat%2Fdemo&raw=1`,
+      `https://share.keysi.dev/api/github/${share}/repos/test-owner/test-repo/contents/my%20image.png?ref=feat%2Fdemo&raw=1`,
     );
   });
 

@@ -47,7 +47,7 @@ describe("BinaryFileViewer", () => {
   it("downloads shared binary files as attachments", () => {
     const file = createMockFile({
       download_url:
-        "https://api.share.keysi.dev/api/github/keys/7m4k-p9rx-2w6c-8h3n/repos/keys/demo/contents/file.bin?raw=1&ref=main",
+        "https://share.keysi.dev/api/github/keys/7m4k-p9rx-2w6c-8h3n/repos/keys/demo/contents/file.bin?raw=1&ref=main",
     });
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
       expect(this.href).toBe(`${file.download_url}&download=1`);

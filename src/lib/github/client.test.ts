@@ -6,7 +6,7 @@ import { createGitHubClient, withTimeout } from "./client";
 it("sends shared repository reads to the API without a GitHub token", async () => {
   const share = "keys/7m4k-p9rx-2w6c-8h3n";
   server.use(
-    http.get(`https://api.share.keysi.dev/api/github/${share}/repos/keys/demo`, ({ request }) => {
+    http.get(`https://share.keysi.dev/api/github/${share}/repos/keys/demo`, ({ request }) => {
       expect(request.headers.get("authorization")).toBeNull();
       return HttpResponse.json({ name: "demo" });
     }),
